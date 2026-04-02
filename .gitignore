@@ -1,0 +1,19 @@
+# Qt & CMake Build Artifacts
+build/
+release/
+debug/
+Makefile
+*.obj
+*.o
+*.exe
+*.dll
+*.moc
+*.ilk
+*.pdb
+*_autogen/
+
+# Editor/IDE Specifics
+.qtcreator/
+*.user
+*.user.*
+.vscode/
