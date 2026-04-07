@@ -25,7 +25,7 @@ PixeonImageViewer/
 **O que faz:** Ponto de entrada do programa.
 
 - Cria o objeto `QApplication`, que é obrigatório em qualquer aplicação Qt e gerencia o **event loop** (laço de eventos de UI).
-- Define o nome da aplicação e da organização via `QCoreApplication::setApplicationName` e `QCoreApplication::setOrganizationName` — isso é usado pelo Qt para nomear arquivos de configuração automáticos do sistema operacional.
+- Define o nome da aplicação e da organização via `QCoreApplication::setApplicationName` e `QCoreApplication::setOrganizationName` — isso é usado pelo Qt para nomear arquivos de configuração automáticas do sistema operacional.
 - Instancia o `MainWindow` e chama `window.show()` para exibí-lo.
 - Chama `app.exec()`, que bloqueia a execução e fica aguardando eventos do usuário (cliques, teclas, etc.) até a janela ser fechada.
 
@@ -134,7 +134,7 @@ static QImage applyBrightnessAndContrast(const QImage &image, int brightness, in
 
 3. **Itera** linha a linha usando `QImage::scanLine(y)`, que retorna um ponteiro direto para a memória da linha (mais rápido que `pixel(x, y)` e `setPixel(x, y)`).
 
-4. Para cada pixel: aplica a fórmula de contraste `(cor - 128) * fator + 128`, adiciona o deslocamento de brilho, e reclampa o resultado no range `[0, 255]` com `std::clamp`.
+4. Para cada pixel: aplica a fórmula de contraste `(cor - 128) * fator + 128`, adiciona o deslocamento de brilho, e limita o resultado no range `[0, 255]` com `std::clamp`.
 
 5. Escreve o pixel modificado de volta com `qRgba(r, g, b, alpha)`, preservando o canal alfa.
 
