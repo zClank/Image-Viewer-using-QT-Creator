@@ -7,6 +7,7 @@
 #include <QListWidget>
 #include <QMainWindow>
 #include <QSlider>
+#include <QWidget>
 
 // Forward declarations
 class ImageViewer;
@@ -15,6 +16,7 @@ class MainWindow : public QMainWindow {
   Q_OBJECT
 
 public:
+  enum class AppTheme { Light, Dark, Grey };
   MainWindow(QWidget *parent = nullptr);
   ~MainWindow();
 
@@ -54,7 +56,7 @@ private:
   QAction *undoAct;
   QAction *canvasModeAct;
 
-  bool isDarkMode;
+  AppTheme currentTheme;
 };
 
 #endif // MAINWINDOW_H

@@ -69,6 +69,18 @@ void ImageViewer::setCanvasMode(bool canvasMode) { isCanvasMode = canvasMode; }
  * @return True if parsing succeeded.
  */
 bool ImageViewer::loadImage(const QString &fileName) {
+  // Fix to prevent spawning duplicates when Canvas Mode is enabled
+  if (isCanvasMode) {
+    for (CanvasImageItem *existing : canvasItems) {
+      if (existing->getFileName() == fileName) {
+        scene->clearSelection();
+        existing->setSelected(true);
+        ensureVisible(existing);
+        return true;
+      }
+    }
+  }
+
   CanvasImageItem *item = new CanvasImageItem(fileName);
   if (!item->loadSuccess()) {
     delete item;

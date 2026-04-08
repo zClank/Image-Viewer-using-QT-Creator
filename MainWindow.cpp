@@ -14,7 +14,7 @@
  * @brief Constructs the MainWindow, attaching layouts and registering signals.
  */
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), isDarkMode(true) {
+    : QMainWindow(parent), currentTheme(MainWindow::AppTheme::Grey) {
   // 1. Establish central working area (the Viewer)
   imageViewer = new ImageViewer(this);
   setCentralWidget(imageViewer);
@@ -27,7 +27,7 @@ MainWindow::MainWindow(QWidget *parent)
   setWindowTitle(tr("Pixeon Image Viewer"));
   resize(1024, 768);
 
-  toggleDarkMode(); // Ensures default state follows Dark Mode scheme
+  toggleDarkMode(); // Ensures default state initializes to Light mode
 
   // 3. Coordinate internal feedback between ImageViewer math and Left Panel
   // Sliders
@@ -72,7 +72,7 @@ void MainWindow::createActions() {
   undoAct->setShortcut(QKeySequence::Undo);
   connect(undoAct, &QAction::triggered, this, &MainWindow::undoEdit);
 
-  darkModeAct = new QAction(tr("Toggle &Dark Mode"), this);
+  darkModeAct = new QAction(tr("Background &Theme Toggle"), this);
   connect(darkModeAct, &QAction::triggered, this, &MainWindow::toggleDarkMode);
 
   canvasModeAct = new QAction(tr("Side-by-Side &Canvas Mode"), this);
@@ -168,14 +168,21 @@ void MainWindow::createDockWindows() {
  * @brief Triggers OS level file dialog to insert one unique asset.
  */
 void MainWindow::openImage() {
-  // Navigate dynamically out of the 'build' folder to point directly to user's
-  // test images
   QString defaultDir =
       QCoreApplication::applicationDirPath() + "/../Stored_Test_Images";
   QString fileName =
       QFileDialog::getOpenFileName(this, tr("Open Image"), defaultDir,
                                    tr("Images (*.png *.jpeg *.jpg *.bmp)"));
   if (!fileName.isEmpty()) {
+    // Check if the image is already listed
+    for (int i = 0; i < imageListWidget->count(); ++i) {
+      if (imageListWidget->item(i)->data(Qt::UserRole).toString() == fileName) {
+        imageListWidget->setCurrentRow(i);
+        return; // Selection change forces load
+      }
+    }
+
+    // Add to list natively
     QListWidgetItem *item = new QListWidgetItem(QFileInfo(fileName).fileName());
     item->setData(Qt::UserRole, fileName);
     imageListWidget->addItem(item);
@@ -192,15 +199,41 @@ void MainWindow::openMultipleImages() {
   QStringList fileNames = QFileDialog::getOpenFileNames(
       this, tr("Open Multiple Images"), defaultDir,
       tr("Images (*.png *.jpeg *.jpg *.bmp)"));
+
+  if (fileNames.isEmpty())
+    return;
+
   for (const QString &fileName : fileNames) {
-    QListWidgetItem *item = new QListWidgetItem(QFileInfo(fileName).fileName());
-    item->setData(Qt::UserRole, fileName);
-    imageListWidget->addItem(item);
+    bool exists = false;
+    for (int i = 0; i < imageListWidget->count(); ++i) {
+      if (imageListWidget->item(i)->data(Qt::UserRole).toString() == fileName) {
+        exists = true;
+        break;
+      }
+    }
+
+    if (!exists) {
+      QListWidgetItem *item =
+          new QListWidgetItem(QFileInfo(fileName).fileName());
+      item->setData(Qt::UserRole, fileName);
+      imageListWidget->addItem(item);
+    }
+
+    // Load every single image into the Viewer
+    // (If in Standard Mode, it replaces the previous one, rendering only the
+    // final image)
+    // (If in Canvas Mode, it spawns all of them across the board)
+    imageViewer->loadImage(fileName);
   }
-  // Select the latest implicitly assuming immediate viewing priority
-  if (!fileNames.isEmpty() && imageListWidget->count() > 0) {
+
+  // Highlight the final image on the Left Dock without triggering duplicate
+  // signals
+  if (imageListWidget->count() > 0) {
+    imageListWidget->blockSignals(true);
     imageListWidget->setCurrentRow(imageListWidget->count() - 1);
+    imageListWidget->blockSignals(false);
   }
+  updateWindowTitle();
 }
 
 /**
@@ -266,31 +299,71 @@ void MainWindow::toggleCanvasMode(bool checked) {
 }
 
 /**
- * @brief Manipulates OS color palette, mimicking dark mode mechanics on
- * QWidgets.
+ * @brief Manipulates OS color palette, triggering dark mode mechanics on
+ * QWidgets, 3 options were implement, cycling each of them with a click:
+ * (Light -> Dark -> Grey)
  */
 void MainWindow::toggleDarkMode() {
-  isDarkMode = !isDarkMode;
-  if (isDarkMode) {
-    qApp->setStyle("Fusion");
-    QPalette darkPalette;
-    darkPalette.setColor(QPalette::Window, QColor(53, 53, 53));
-    darkPalette.setColor(QPalette::WindowText, Qt::white);
-    darkPalette.setColor(QPalette::Base, QColor(25, 25, 25));
-    darkPalette.setColor(QPalette::AlternateBase, QColor(53, 53, 53));
-    darkPalette.setColor(QPalette::ToolTipBase, Qt::white);
-    darkPalette.setColor(QPalette::ToolTipText, Qt::white);
-    darkPalette.setColor(QPalette::Text, Qt::white);
-    darkPalette.setColor(QPalette::Button, QColor(53, 53, 53));
-    darkPalette.setColor(QPalette::ButtonText, Qt::white);
-    darkPalette.setColor(QPalette::BrightText, Qt::red);
-    darkPalette.setColor(QPalette::Link, QColor(42, 130, 218));
-    darkPalette.setColor(QPalette::Highlight, QColor(42, 130, 218));
-    darkPalette.setColor(QPalette::HighlightedText, Qt::black);
-    qApp->setPalette(darkPalette);
+  if (currentTheme == AppTheme::Light) {
+    currentTheme = AppTheme::Dark;
+  } else if (currentTheme == AppTheme::Dark) {
+    currentTheme = AppTheme::Grey;
   } else {
-    qApp->setPalette(style()->standardPalette());
+    currentTheme = AppTheme::Light;
   }
+
+  qApp->setStyle("Fusion");
+  QPalette palette;
+
+  if (currentTheme == AppTheme::Light) {
+    // Pure Light Mode Explicit Palette (Fixes the dull grey standardPalette
+    // issue)
+    palette.setColor(QPalette::Window, QColor(240, 240, 240));
+    palette.setColor(QPalette::WindowText, Qt::black);
+    palette.setColor(QPalette::Base, Qt::white);
+    palette.setColor(QPalette::AlternateBase, QColor(225, 225, 225));
+    palette.setColor(QPalette::ToolTipBase, Qt::white);
+    palette.setColor(QPalette::ToolTipText, Qt::black);
+    palette.setColor(QPalette::Text, Qt::black);
+    palette.setColor(QPalette::Button, QColor(240, 240, 240));
+    palette.setColor(QPalette::ButtonText, Qt::black);
+    palette.setColor(QPalette::BrightText, Qt::red);
+    palette.setColor(QPalette::Link, QColor(42, 130, 218));
+    palette.setColor(QPalette::Highlight, QColor(42, 130, 218));
+    palette.setColor(QPalette::HighlightedText, Qt::white);
+  } else if (currentTheme == AppTheme::Dark) {
+    // Pure Dark Mode
+    palette.setColor(QPalette::Window, QColor(33, 33, 33));
+    palette.setColor(QPalette::WindowText, Qt::white);
+    palette.setColor(QPalette::Base, QColor(20, 20, 20));
+    palette.setColor(QPalette::AlternateBase, QColor(33, 33, 33));
+    palette.setColor(QPalette::ToolTipBase, Qt::white);
+    palette.setColor(QPalette::ToolTipText, Qt::white);
+    palette.setColor(QPalette::Text, Qt::white);
+    palette.setColor(QPalette::Button, QColor(45, 45, 45));
+    palette.setColor(QPalette::ButtonText, Qt::white);
+    palette.setColor(QPalette::BrightText, Qt::red);
+    palette.setColor(QPalette::Link, QColor(42, 130, 218));
+    palette.setColor(QPalette::Highlight, QColor(42, 130, 218));
+    palette.setColor(QPalette::HighlightedText, Qt::black);
+  } else if (currentTheme == AppTheme::Grey) {
+    // Relaxed 'Lighter' Dark Mode (The previous greyish darkmode)
+    palette.setColor(QPalette::Window, QColor(53, 53, 53));
+    palette.setColor(QPalette::WindowText, Qt::white);
+    palette.setColor(QPalette::Base, QColor(40, 40, 40));
+    palette.setColor(QPalette::AlternateBase, QColor(53, 53, 53));
+    palette.setColor(QPalette::ToolTipBase, Qt::white);
+    palette.setColor(QPalette::ToolTipText, Qt::white);
+    palette.setColor(QPalette::Text, Qt::white);
+    palette.setColor(QPalette::Button, QColor(65, 65, 65));
+    palette.setColor(QPalette::ButtonText, Qt::white);
+    palette.setColor(QPalette::BrightText, Qt::red);
+    palette.setColor(QPalette::Link, QColor(42, 130, 218));
+    palette.setColor(QPalette::Highlight, QColor(42, 130, 218));
+    palette.setColor(QPalette::HighlightedText, Qt::black);
+  }
+
+  qApp->setPalette(palette);
 }
 
 /**

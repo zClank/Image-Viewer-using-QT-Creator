@@ -8,7 +8,7 @@
  * @param parent Optional Qt graphics parent.
  */
 CanvasImageItem::CanvasImageItem(const QString &fileName, QGraphicsItem *parent)
-    : QGraphicsPixmapItem(parent), loaded(false), currentBrightness(0),
+    : QGraphicsPixmapItem(parent), sourceFileName(fileName), loaded(false), currentBrightness(0),
       currentContrast(0) {
   // Enable ability for users to select this image and move it around the scene
   setFlags(QGraphicsItem::ItemIsSelectable | QGraphicsItem::ItemIsMovable);

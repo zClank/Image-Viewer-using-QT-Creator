@@ -6,6 +6,7 @@
 #include <QImage>
 #include <QList>
 #include <QLine>
+#include <QString>
 
 class CanvasImageItem : public QGraphicsPixmapItem {
 public:
@@ -17,6 +18,8 @@ public:
     };
 
     explicit CanvasImageItem(const QString &fileName, QGraphicsItem *parent = nullptr);
+
+    QString getFileName() const { return sourceFileName; }
 
     bool loadSuccess() const;
     void pushUndoState();
@@ -43,6 +46,7 @@ protected:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget = nullptr) override;
 
 private:
+    QString sourceFileName;
     bool loaded;
     int currentBrightness;
     int currentContrast;
